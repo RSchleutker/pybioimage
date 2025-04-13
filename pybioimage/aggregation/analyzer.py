@@ -146,6 +146,8 @@ class Analyzer:
         image = image[start_slice:end_slice].max(axis=0)
         shape = image.shape
 
+        # Some edit...
+
         logger.info("Reading image with shape %s.", image.shape)
 
         # Images with 3 channels have a different axes order. Put the channel axis to front.
