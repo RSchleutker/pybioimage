@@ -346,15 +346,6 @@ class Region:
     def normalize_measurement(self) -> pd.DataFrame:
         """Correct and normalize intensities in the bleach region.
 
-        Parameters
-        ----------
-        prebleach_frames : int
-            The number of prebleach frames.
-        interval : float, optional
-            The intervall time of the movie. The unit (seconds, minutes) is
-            arbitrary. The frame number will be multiplied by this number.
-            Default is 1.0.
-
         Returns
         -------
         pd.DataFrame
