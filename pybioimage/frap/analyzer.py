@@ -87,10 +87,14 @@ class Analyzer:
         if pattern is None:
             pattern = ".*\\.csv$"
 
+        logger.debug("Search regions with pattern '%s'.", pattern)
+
         regions = []
 
         for file in find_files(self.path.parent, pattern, recursive=False):
             regions.append(Region(file, self))
+
+        logger.info("Found %d regions for analysis.", len(regions))
 
         return regions
 
@@ -121,12 +125,10 @@ class Analyzer:
             the `meta` attribute of this class as well as of the Region class.
         """
 
-        logger.info(f"Running {self}.")
+        logger.info("Starting analysis.")
 
         measurements = []
         regions = self.regions(pattern=pattern)
-
-        logger.info(f"Detected {len(regions)} regions with pattern `{pattern}`.")
 
         for region in regions:
             logger.info(f"Analyzing {region}.")
@@ -142,6 +144,8 @@ class Analyzer:
         measurements = pd.concat(measurements)
         for key, value in self.metadata.items():
             measurements[key] = value
+
+        logger.info("Finished analysis. Extracted %d values from %d regions.", len(measurements), len(regions))
 
         return measurements
 
@@ -195,7 +199,12 @@ class Region:
     def _extract_position(self) -> NDArray[np.int_]:
         for row in self.trajectory:
             if row[0] == 0:
+                logger.debug("Position is %s.", row)
                 return row
+
+        row = self.trajectory[0]
+        logger.debug("Position is %s.", row)
+
         return self.trajectory[0]
 
     @cached_property
@@ -212,6 +221,7 @@ class Region:
         separately for each movie. This is achieved by this method.
         """
 
+        logger.info("Generating registered movie.")
         registered = np.zeros_like(self.analyzer.movie)
 
         shifts = self.position - self.trajectory
@@ -288,6 +298,8 @@ class Region:
                 background correction).
         """
 
+        logger.info("Measuring region with radius %d.", radius)
+
         frames, rows, cols = self.analyzer.movie.shape
         buffer = np.zeros((rows, cols), dtype=np.bool_)
         _, r, c = self.position
@@ -350,6 +362,7 @@ class Region:
             corrected and normalized intensities.
         """
 
+        logger.info("Normalizing measured values for region.")
         pb = self.analyzer.prebleach_frames
 
         def correct_background(df: pd.DataFrame) -> pd.DataFrame:
