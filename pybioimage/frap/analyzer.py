@@ -50,19 +50,19 @@ class Analyzer:
     """
 
     def __init__(self, path: Path, prebleach_frames: int, interval: float = 1.0):
-        self.path: Path = path
-        self.movie: NDArray = io.imread(self.path)
-        self.prebleach_frames: int = prebleach_frames
+        self.path = path
+        self.movie = io.imread(self.path)
+        self.prebleach_frames = prebleach_frames
         self.interval = interval
-        self.meta: dict[str, str] = str2dict(self.path.parent.name)
+        self.metadata = self._extract_metadata()
 
     def __repr__(self):
         return f"Analyzer(path='{self.path}', ...)"
 
-    def regions(
-        self,
-        pattern: Optional[str | re.Pattern[str]] = None,
-    ) -> list["Region"]:
+    def _extract_metadata(self) -> dict[str, str]:
+        return str2dict(self.path.parent.name)
+
+    def regions(self, pattern: Optional[str | re.Pattern[str]] = None) -> list["Region"]:
         """Get a list of bleach regions.
 
         Parameters
@@ -90,7 +90,7 @@ class Analyzer:
         regions = []
 
         for file in find_files(self.path.parent, pattern, recursive=False):
-            regions.append(Region(file, self.movie))
+            regions.append(Region(file, self))
 
         return regions
 
@@ -179,9 +179,9 @@ class Region:
         and columns for corrected and normalized values.
     """
 
-    def __init__(self, path: Path, movie: NDArray):
-        self.path: Path = path
-        self.movie: NDArray = movie
+    def __init__(self, path: Path, analyzer: Analyzer):
+        self.path = path
+        self.analyzer = analyzer
         self.trajectory: NDArray[np.int_] = self._read_csv()
 
         self.measurements = None
@@ -192,7 +192,7 @@ class Region:
         return f"Region(path='{self.path}', ...)"
 
     @cached_property
-    def registered(self) -> None:
+    def registered(self) -> NDArray[np.int_]:
         """The movie registered for this region.
 
         A movie of the same shape and dtype as the original movie. Each frame
@@ -205,12 +205,12 @@ class Region:
         separately for each movie. This is achieved by this method.
         """
 
-        registered = np.zeros_like(self.movie)
+        registered = np.zeros_like(self.analyzer.movie)
 
         shifts = self.position - self.trajectory
 
         for frame, *shift in shifts:
-            registered[-frame] = np.roll(self.movie[-frame], shift, axis=(0, 1))
+            registered[-frame] = np.roll(self.analyzer.movie[-frame], shift, axis=(0, 1))
 
         return registered
 
@@ -259,7 +259,7 @@ class Region:
         return np.concatenate(subset, axis=1)
 
     @cached_property
-    def position(self) -> None:
+    def position(self) -> NDArray[np.int_]:
         for row in self.trajectory:
             if row[0] == 0:
                 return row
@@ -287,7 +287,7 @@ class Region:
                 background correction).
         """
 
-        frames, rows, cols = self.movie.shape
+        frames, rows, cols = self.analyzer.movie.shape
         buffer = np.zeros((rows, cols), dtype="bool")
         _, r, c = self.position
         dr, dc = draw.disk((r, c), radius=radius, shape=(rows, cols))
@@ -349,7 +349,7 @@ class Region:
             corrected and normalized intensities.
         """
 
-        pb = prebleach_frames
+        pb = self.analyzer.prebleach_frames
 
         def correct_background(df: pd.DataFrame) -> pd.DataFrame:
             df["Corrected"] = df["Raw"] / df["Foreground"]
