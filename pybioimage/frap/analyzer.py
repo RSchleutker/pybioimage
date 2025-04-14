@@ -44,7 +44,7 @@ class Analyzer:
         The path of the movie file.
     movie : NDArray
         The FRAP movie.
-    meta : dict[str, str]
+    metadata : dict[str, str]
         Metadata inferred from the filename of the movie. The dict is build using the `str2dict()`
         function from the `utils` module.
     """
@@ -131,7 +131,7 @@ class Analyzer:
         for region in regions:
             logger.info(f"Analyzing {region}.")
             region.measure(**kwargs)
-            region.normalize_measurement(prebleach_frames=self.prebleach_frames)
+            region.normalize_measurement()
             measurements.append(region.measurements)
 
         # If no regions were found.
@@ -140,7 +140,7 @@ class Analyzer:
 
         # Combine data from all regions into one table and add metadata.
         measurements = pd.concat(measurements)
-        for key, value in self.meta.items():
+        for key, value in self.metadata.items():
             measurements[key] = value
 
         return measurements
@@ -152,19 +152,19 @@ class Region:
     Parameters
     ----------
     path : Path
-    movie : NDArray
+    analyzer : Analyzer
 
     Attributes
     ----------
     path : Path
         The path of the CSV file used to create the region.
-    movie : NDArray
-        The FRAP movie.
+    analyzer : Analyzer
+        The Analyzer instance, which created this Region instance.
     trajectory : NDArray[np.int_]
         A Nx3 array representing the position of the bleach region. The
         columns represent the frame, y (row), and x (column) position of the
         region. This trajectory is used to generate the registered movie.
-    meta : dict[str, str]
+    metadata : dict[str, str]
         Metadata for this region. This is constructed from the filename using
         the `str2dict()` function from the `utils` module.
     position : NDArray[np.int_]
@@ -182,14 +182,21 @@ class Region:
     def __init__(self, path: Path, analyzer: Analyzer):
         self.path = path
         self.analyzer = analyzer
-        self.trajectory: NDArray[np.int_] = self._read_csv()
+        self.trajectory = self._read_csv()
+        self.position = self._extract_position()
 
         self.measurements = None
 
-        self.meta = str2dict(self.path.stem)
+        self.metadata = str2dict(self.path.stem)
 
     def __repr__(self) -> str:
         return f"Region(path='{self.path}', ...)"
+
+    def _extract_position(self) -> NDArray[np.int_]:
+        for row in self.trajectory:
+            if row[0] == 0:
+                return row
+        return self.trajectory[0]
 
     @cached_property
     def registered(self) -> NDArray[np.int_]:
@@ -258,12 +265,6 @@ class Region:
 
         return np.concatenate(subset, axis=1)
 
-    @cached_property
-    def position(self) -> NDArray[np.int_]:
-        for row in self.trajectory:
-            if row[0] == 0:
-                return row
-
     def measure(self, radius: int = 5) -> pd.DataFrame:
         """Measure intensities in the bleach region.
 
@@ -288,7 +289,7 @@ class Region:
         """
 
         frames, rows, cols = self.analyzer.movie.shape
-        buffer = np.zeros((rows, cols), dtype="bool")
+        buffer = np.zeros((rows, cols), dtype=np.bool_)
         _, r, c = self.position
         dr, dc = draw.disk((r, c), radius=radius, shape=(rows, cols))
 
@@ -308,7 +309,7 @@ class Region:
                     "Foreground": image[buffer].mean(),
                     "Correction": np.quantile(image, 0.99),
                     "Background": image[~buffer].mean(),
-                    **self.meta,
+                    **self.metadata,
                 }
             )
 
@@ -328,9 +329,9 @@ class Region:
         df = pd.read_csv(self.path).round(decimals=0)
         df -= 1
 
-        return df[["Slice", "Y", "X"]].to_numpy(dtype="int")
+        return df[["Slice", "Y", "X"]].to_numpy(dtype=np.int_)
 
-    def normalize_measurement(self, prebleach_frames: int, interval: float = 1.0) -> pd.DataFrame:
+    def normalize_measurement(self) -> pd.DataFrame:
         """Correct and normalize intensities in the bleach region.
 
         Parameters
@@ -361,7 +362,7 @@ class Region:
             return df
 
         def add_time(df: pd.DataFrame) -> pd.DataFrame:
-            df["Time"] = (df["Frame"] - pb) * interval
+            df["Time"] = (df["Frame"] - pb) * self.analyzer.interval
             return df
 
         return self.measurements.pipe(correct_background).pipe(normalize_intensity).pipe(add_time)
