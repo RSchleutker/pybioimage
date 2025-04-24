@@ -143,7 +143,7 @@ class Analyzer:
     def _read_image(self) -> NDArray[np.uint8]:
         start_slice, end_slice = self.metadata.get("projection_slices", [None, None])
         image = io.imread(self.path)
-        image = image[start_slice:end_slice].max(axis=0)
+        # image = image[start_slice:end_slice].max(axis=0)
         shape = image.shape
 
         # Some edit...
@@ -156,7 +156,7 @@ class Analyzer:
             logger.debug("Rearranged shape from %s to %s.", shape, image.shape)
 
         # Apply mask by setting all pixels outside the mask to 0.
-        image[:, ~self.mask] = 0
+        # image[:, ~self.mask] = 0
 
         if self.metadata["Exp"] == "Extracellular":
             image[[1, 2]] = image[[2, 1]]

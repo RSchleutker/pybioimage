@@ -2,18 +2,10 @@
 
 ## Installation
 
-### From this repository
-
-Make sure to meet the following requirements:
-
-* You have *git* installed on your local computer in order to clone this 
-  repository.
-* You have a Python installation with Python 3.11 or higher.
-
 To install ``pybioimage`` run the following command.
 
 ````
-pip install pybioimage@git+https://github.com/RSchleutker/pybioimage.git
+pip install pybioimage
 ````
 
 ## Usage
