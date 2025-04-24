@@ -1,13 +1,13 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "pybioimage"
 description = "A small package for custom image analysis tasks."
-version = "2025.4.7.1"
+version = "0.1.0"
 readme = "README.md"
-requires-python = ">=3.11.8"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Raphael Schleutker", email = "raphaelschleutker@gmx.de" }
+]
+requires-python = ">=3.12"
 dependencies = [
     "scikit-image>=0.22.0",
     "opencv-python>=4.6.0",
@@ -15,3 +15,11 @@ dependencies = [
     "pandas>=2.2.1",
     "pykuwahara>=0.3.2"
 ]
+
+[project.optional-dependencies]
+dev = ["black"]
+test = ["pytest>=8.3.4"]
+
+[build-system]
+requires = ["flit_core<4"]
+build-backend = "flit_core.buildapi"
